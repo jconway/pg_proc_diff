@@ -118,6 +118,13 @@ def fetch_both(dsn: str):
 
 def _with_dbname(dsn: str, dbname: str) -> str:
     """Return dsn with dbname replaced/appended (keyword DSN form)."""
+    stripped = dsn.strip()
+    if stripped.startswith("postgres://") or stripped.startswith("postgresql://"):
+        raise ValueError(
+            "pg_proc_diff requires keyword/value conninfo "
+            "(e.g. 'host=... dbname=...'), not a URI, because it must "
+            "re-target the connection to template0."
+        )
     parts = [kv for kv in dsn.split() if not kv.startswith("dbname=")]
     parts.append(f"dbname={dbname}")
     return " ".join(parts)

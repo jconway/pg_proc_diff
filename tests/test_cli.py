@@ -58,3 +58,33 @@ class TestCli(unittest.TestCase):
         code = cli.main(["host=x"], fetch=boom, stdout=out, stderr=err)
         self.assertEqual(code, 2)
         self.assertIn("nope", err.getvalue())
+
+    def test_no_acl_flag_ignores_proacl_diff(self):
+        def fake_fetch_proacl(dsn):
+            return (
+                {1: row(1, proacl="{postgres=X/postgres}")},
+                {1: row(1, proacl="{postgres=X/postgres,public=X/postgres}")},
+                META,
+            )
+
+        out = io.StringIO()
+        code = cli.main(["host=x", "--report-only"], fetch=fake_fetch_proacl, stdout=out)
+        self.assertEqual(code, 1)
+
+        out = io.StringIO()
+        code = cli.main(["host=x", "--report-only", "--no-acl"],
+                        fetch=fake_fetch_proacl, stdout=out)
+        self.assertEqual(code, 0)
+
+    def test_include_acl_flag_detects_proacl_diff(self):
+        def fake_fetch_proacl(dsn):
+            return (
+                {1: row(1, proacl="{postgres=X/postgres}")},
+                {1: row(1, proacl="{postgres=X/postgres,public=X/postgres}")},
+                META,
+            )
+
+        out = io.StringIO()
+        code = cli.main(["host=x", "--report-only", "--include-acl"],
+                        fetch=fake_fetch_proacl, stdout=out)
+        self.assertEqual(code, 1)

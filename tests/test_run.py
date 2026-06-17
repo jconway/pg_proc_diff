@@ -36,3 +36,17 @@ class TestBuildOutputs(unittest.TestCase):
         report, sql, code = build_outputs(baseline, target, META, emit_ddl=False)
         self.assertIsNone(sql)
         self.assertEqual(code, 1)
+
+    def test_include_acl_true_detects_proacl_diff(self):
+        baseline = {1: row(1, proacl="{postgres=X/postgres}")}
+        target = {1: row(1, proacl="{postgres=X/postgres,public=X/postgres}")}
+        report, sql, code = build_outputs(baseline, target, META, emit_ddl=False,
+                                          include_acl=True)
+        self.assertEqual(code, 1)
+
+    def test_include_acl_false_ignores_proacl_diff(self):
+        baseline = {1: row(1, proacl="{postgres=X/postgres}")}
+        target = {1: row(1, proacl="{postgres=X/postgres,public=X/postgres}")}
+        report, sql, code = build_outputs(baseline, target, META, emit_ddl=False,
+                                          include_acl=False)
+        self.assertEqual(code, 0)

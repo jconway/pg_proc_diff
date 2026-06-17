@@ -20,7 +20,12 @@ Options:
 
 - `--emit-ddl FILE`  write the make-it-match SQL to FILE
 - `--report-only`    print the difference report only; generate no SQL
+- `--no-acl`         skip ACL (`proacl`) differences
+- `--include-acl`    include ACL differences (default)
 - `-q, --quiet`      print only the summary line
+
+The target conninfo must be in keyword/value form (e.g. `host=... dbname=...`),
+not a URI, because the tool re-targets the connection to `template0`.
 
 Exit codes: `0` no differences, `1` differences found, `2` error
 (e.g. not a superuser, cannot connect).

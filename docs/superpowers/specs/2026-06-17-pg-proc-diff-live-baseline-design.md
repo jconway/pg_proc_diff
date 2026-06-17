@@ -82,7 +82,7 @@ For columns with no clean `ALTER FUNCTION` equivalent, emit a catalog
 statement the operator must consciously uncomment:
 
 `prolang`, `prokind`, `proretset`, `provariadic`, `prorettype`, `proargtypes`,
-`proallargtypes`, `proargmodes`, `proargnames`, `probin`, `prosrc`.
+`proallargtypes`, `proargmodes`, `proargnames`, `protrftypes`, `probin`, `prosrc`.
 
 ### Hard columns (pg_node_tree) — report only
 

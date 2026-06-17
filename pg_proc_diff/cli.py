@@ -25,6 +25,14 @@ def _parse_args(argv):
     parser.add_argument(
         "-q", "--quiet", action="store_true",
         help="suppress the full report; print only the summary line.")
+    acl_group = parser.add_mutually_exclusive_group()
+    acl_group.add_argument(
+        "--no-acl", dest="include_acl", action="store_false",
+        help="skip ACL (proacl) differences.")
+    acl_group.add_argument(
+        "--include-acl", dest="include_acl", action="store_true",
+        help="include ACL differences (default).")
+    parser.set_defaults(include_acl=True)
     return parser.parse_args(argv)
 
 
@@ -42,7 +50,8 @@ def main(argv=None, fetch=catalog.fetch_both, stdout=sys.stdout, stderr=sys.stde
 
     meta.setdefault("generated", datetime.date.today().isoformat())
     emit_ddl = bool(args.emit_ddl) and not args.report_only
-    report, sql, code = build_outputs(baseline, target, meta, emit_ddl=emit_ddl)
+    report, sql, code = build_outputs(baseline, target, meta, emit_ddl=emit_ddl,
+                                      include_acl=args.include_acl)
 
     if args.quiet:
         print(report.splitlines()[0], file=stdout)
