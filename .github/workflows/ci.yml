@@ -36,7 +36,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pg-version: ['16', '17', '18']
+        # '19beta1' is the latest published tag; bump to '19' once PG19 is released
+        pg-version: ['16', '17', '18', '19beta1']
     services:
       postgres:
         image: postgres:${{ matrix.pg-version }}
