@@ -1,5 +1,7 @@
 # pg_proc_diff
 
+[![CI](https://github.com/jconway/pg_proc_diff/actions/workflows/ci.yml/badge.svg)](https://github.com/jconway/pg_proc_diff/actions/workflows/ci.yml)
+
 Compare built-in functions (`pg_catalog.pg_proc` rows with `oid < 16384`) in a
 **target** database against the pristine **template0** baseline on the same
 cluster. Report differences and optionally emit SQL that brings a freshly
@@ -43,3 +45,28 @@ The emitted SQL has three parts:
 3. **Manual notes** — `pg_node_tree` columns (`proargdefaults`, `prosqlbody`)
    and functions present in only one database, which are reported but not
    auto-applied.
+
+## Limitations
+
+- **`pg_node_tree` columns are report-only.** Drift in `proargdefaults`
+  (argument default expressions) or `prosqlbody` (SQL-language function bodies,
+  PG14+) is detected and reported, but no SQL is generated — these columns
+  reject literal input, so they cannot be safely reconstructed. Resolve them by
+  recreating the function manually.
+- **DML-fallback columns are emitted commented-out.** Identity- and
+  body-defining columns (`prolang`, `prokind`, `proretset`, `provariadic`,
+  `prorettype`, `proargtypes`, `proallargtypes`, `proargmodes`, `proargnames`,
+  `protrftypes`, `prosrc`, `probin`) have no clean DDL form, so the tool writes
+  raw `UPDATE pg_catalog.pg_proc` statements wrapped in an
+  `allow_system_table_mods` scaffold. These are **commented out** and require
+  manual review before applying — directly modifying system catalogs is
+  unsupported by PostgreSQL and can corrupt the catalog if done wrong.
+- **ACL diffing covers `EXECUTE` only.** `proacl` is the only privilege
+  meaningful for functions, so other privilege bits are ignored. A `NULL`
+  `proacl` is treated as the built-in default (EXECUTE granted to `PUBLIC`).
+- **Added/removed functions are report-only.** Functions present in just one of
+  the two databases are reported but never created or dropped; the diff is
+  keyed by `oid` and only generates SQL for functions that exist in both.
+- **Superuser required.** The tool temporarily toggles
+  `template0.datallowconn`, which only a superuser may do. Non-superuser
+  connections exit with code `2`.
