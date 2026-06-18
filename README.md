@@ -70,3 +70,33 @@ The emitted SQL has three parts:
 - **Superuser required.** The tool temporarily toggles
   `template0.datallowconn`, which only a superuser may do. Non-superuser
   connections exit with code `2`.
+
+## Testing
+
+Unit tests (no database needed) and the catalog integration tests run via
+`unittest`:
+
+    python3 -m unittest discover -s tests
+
+The integration tests are skipped unless `PGPROCDIFF_TEST_DSN` points at a
+superuser connection. GitHub Actions runs both, with integration coverage
+across PostgreSQL 16, 17, 18, and 19beta1.
+
+For a deeper end-to-end check against a live cluster, run the shakedown script:
+
+    PGPROCDIFF_SHAKEDOWN_DSN='host=/tmp port=5432 user=postgres' \
+        scripts/shakedown_live.sh
+
+It exercises behaviours the unit tests cannot: zero false positives on a clean
+`template0` clone, DDL/ACL drift detection plus reconciliation onto a fresh
+clone, the commented catalog-DML fallback path (when the server runs with
+`allow_system_table_mods=on`), and the `template0.datallowconn` restore
+invariant under `SIGINT`. It also accepts an optional
+`PGPROCDIFF_SHAKEDOWN_REAL_DB=<dbname>` to assert that a real database has no
+built-in drift.
+
+**Safety:** the script connects as a superuser and briefly toggles
+`template0.datallowconn` (always restored), and creates and drops scratch
+databases named `pgpd_shakedown_*`. Point it at a throwaway clone or staging
+cluster — never a production primary. With no `PGPROCDIFF_SHAKEDOWN_DSN` set it
+skips cleanly.
