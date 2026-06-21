@@ -11,13 +11,19 @@ import psycopg2
 from .model import COMPARED_COLUMNS, Row
 
 # Per-column SELECT expression. Most columns are compared as ::text; a few use a
-# friendlier canonical form so DDL generation can consume them directly.
+# friendlier canonical form so DDL generation can consume them directly. Boolean
+# columns are normalized to 't'/'f' (not the native 'true'/'false' text cast),
+# the form the ddl.py handlers compare against.
 _COLUMN_EXPR = {
     "pronamespace": "p.pronamespace::regnamespace::text",
     "proowner": "p.proowner::regrole::text",
     "prosupport": "p.prosupport::regproc::text",
     "proconfig": "p.proconfig::text",
     "proacl": "p.proacl::text",
+    "proisstrict": "CASE WHEN p.proisstrict THEN 't' ELSE 'f' END",
+    "prosecdef": "CASE WHEN p.prosecdef THEN 't' ELSE 'f' END",
+    "proleakproof": "CASE WHEN p.proleakproof THEN 't' ELSE 'f' END",
+    "proretset": "CASE WHEN p.proretset THEN 't' ELSE 'f' END",
 }
 
 

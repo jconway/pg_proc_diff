@@ -34,6 +34,22 @@ class TestCatalogIntegration(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_boolean_columns_are_canonical_tf(self):
+        # Boolean pg_proc columns must be normalized to 't'/'f' (not the native
+        # 'true'/'false' text cast) so the DDL handlers, which compare against
+        # 't', emit the correct direction. See ddl.generate's proleakproof /
+        # proisstrict / prosecdef branches.
+        from pg_proc_diff import catalog
+
+        baseline, target, meta = catalog.fetch_both(DSN)
+        bool_cols = ["proisstrict", "prosecdef", "proleakproof", "proretset"]
+        for snapshot in (baseline, target):
+            for row in snapshot.values():
+                for col in bool_cols:
+                    self.assertIn(
+                        row.cols[col], ("t", "f"),
+                        f"{col}={row.cols[col]!r} should be canonical 't'/'f'")
+
     def test_non_superuser_raises(self):
         from pg_proc_diff import catalog
         # A bogus DSN that connects as a non-superuser would raise NotSuperuser;
