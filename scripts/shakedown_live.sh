@@ -140,6 +140,10 @@ TGT="pgpd_shakedown_target_$SUFFIX"
 make_clone "$TGT"
 psql_db "$TGT" "ALTER FUNCTION pg_catalog.upper(text) COST 50" >/dev/null
 psql_db "$TGT" "REVOKE EXECUTE ON FUNCTION pg_catalog.upper(text) FROM PUBLIC" >/dev/null
+# Boolean column: abs(bigint) is NOT LEAKPROOF in template0; making the target
+# LEAKPROOF must emit "... LEAKPROOF", not the reverse (regression guard for the
+# boolean text-format bug where 'true'/'false' never matched 't').
+psql_db "$TGT" "ALTER FUNCTION pg_catalog.abs(bigint) LEAKPROOF" >/dev/null
 
 SQL="$WORKDIR/target_emit.sql"
 run_tool "$TGT" "$WORKDIR/target.log" --emit-ddl "$SQL"
@@ -162,6 +166,14 @@ else
   failed "expected 'REVOKE EXECUTE ... FROM PUBLIC' in emitted SQL"
   grep -i revoke "$SQL" | sed 's/^/    /' || true
 fi
+# Direction matters: must be "LEAKPROOF" (reproduce target), not "NOT LEAKPROOF".
+if grep -qiE 'ALTER FUNCTION pg_catalog\.abs\(bigint\) LEAKPROOF;' "$SQL" \
+    && ! grep -qiE 'ALTER FUNCTION pg_catalog\.abs\(bigint\) NOT LEAKPROOF;' "$SQL"; then
+  pass "emitted ALTER FUNCTION ... LEAKPROOF (correct direction) for proleakproof drift"
+else
+  failed "expected 'ALTER FUNCTION ... abs(bigint) LEAKPROOF;' (not NOT LEAKPROOF)"
+  grep -i leakproof "$SQL" | sed 's/^/    /' || true
+fi
 
 # Apply the runnable DDL to a fresh clone; it must then reproduce target drift.
 RECON="pgpd_shakedown_recon_$SUFFIX"
@@ -170,8 +182,9 @@ if psql "$BASE_DSN dbname=$RECON" -v ON_ERROR_STOP=1 -qX -f "$SQL" \
     >"$WORKDIR/apply.log" 2>&1; then
   run_tool "$RECON" "$WORKDIR/recon.log" --report-only
   if [[ $RC -eq 1 ]] && grep -qi procost "$WORKDIR/recon.log" \
-      && grep -qi proacl "$WORKDIR/recon.log"; then
-    pass "reconciled clone reproduces target drift (procost + proacl) after applying DDL"
+      && grep -qi proacl "$WORKDIR/recon.log" \
+      && grep -qi proleakproof "$WORKDIR/recon.log"; then
+    pass "reconciled clone reproduces target drift (procost + proacl + proleakproof) after applying DDL"
   else
     failed "reconciled clone did not reproduce expected drift (exit $RC):"
     sed 's/^/    /' "$WORKDIR/recon.log"
